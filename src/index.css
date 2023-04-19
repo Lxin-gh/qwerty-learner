@@ -55,6 +55,10 @@ body,
 }
 
 @layer components {
+  .icon {
+    @apply h-5.5 w-5.5 focus:outline-none;
+  }
+
   .word-chip {
     @apply flex h-10 w-auto cursor-pointer
       flex-row items-center
@@ -119,6 +123,9 @@ body,
 
   .slider {
     @apply relative flex h-10 w-full cursor-pointer select-none items-center;
+  }
+  .slider [data-disabled] {
+    @apply pointer-events-none opacity-50;
   }
   .slider > span:nth-child(1) {
     @apply relative h-[5px] flex-grow rounded-full bg-gray-200;

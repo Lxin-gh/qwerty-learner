@@ -1,51 +1,42 @@
-import React, { useCallback, useEffect, useReducer, useState } from 'react'
-import Header from '@/components/Header'
-import Speed from './components/Speed'
-import Loading from '@/components/Loading'
+import Layout from '../../components/Layout'
+import CurrentWord from './components/CurrentWord'
+import Progress from './components/Progress'
 import PronunciationSwitcher from './components/PronunciationSwitcher'
-import { IsDesktop, isLegal } from '@/utils'
-import { useHotkeys } from 'react-hotkeys-hook'
+import ResultScreen from './components/ResultScreen'
+import Speed from './components/Speed'
 import Switcher from './components/Switcher'
 import { useWordList } from './hooks/useWordList'
-import Layout from '../../components/Layout'
-import { NavLink } from 'react-router-dom'
-import Tooltip from '@/components/Tooltip'
-import Progress from './components/Progress'
-import ResultScreen from './components/ResultScreen'
-import CurrentWord from './components/CurrentWord'
-import { useAtomValue } from 'jotai'
-import {
-  currentChapterAtom,
-  currentDictInfoAtom,
-  isLoopSingleWordAtom,
-  isOpenDarkModeAtom,
-  keySoundsConfigAtom,
-  phoneticConfigAtom,
-  pronunciationConfigAtom,
-  randomConfigAtom,
-} from '@/store'
-import { ChapterStatUpload, WordStat, WordStatUpload } from '@/typings'
-import mixpanel from 'mixpanel-browser'
-import dayjs from 'dayjs'
-import StarCard from '@/components/StarCard'
 import { initialState, TypingContext, typingReducer, TypingStateActionType } from './store'
+import Header from '@/components/Header'
+import Loading from '@/components/Loading'
+import StarCard from '@/components/StarCard'
+import Tooltip from '@/components/Tooltip'
+import { idDictionaryMap } from '@/resources/dictionary'
+import { currentChapterAtom, currentDictIdAtom, currentDictInfoAtom, isLoopSingleWordAtom, randomConfigAtom } from '@/store'
+import { IsDesktop, isLegal } from '@/utils'
+import { useSaveChapterRecord } from '@/utils/db'
+import { useMixPanelChapterLogUploader } from '@/utils/mixpanel'
+import { useAtom, useAtomValue } from 'jotai'
+import React, { useCallback, useEffect, useState } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
+import { NavLink } from 'react-router-dom'
+import { useImmerReducer } from 'use-immer'
 
 const App: React.FC = () => {
-  const [typingState, dispatch] = useReducer(typingReducer, initialState)
+  const [typingState, dispatch] = useImmerReducer(typingReducer, structuredClone(initialState))
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const { words } = useWordList()
   const currentWord = typingState.chapterData.words[typingState.chapterData.index]
 
   const currentChapter = useAtomValue(currentChapterAtom)
+  const [currentDictId, setCurrentDictId] = useAtom(currentDictIdAtom)
   const currentDictInfo = useAtomValue(currentDictInfoAtom)
 
-  const isDarkMode = useAtomValue(isOpenDarkModeAtom)
-  const keySoundsConfig = useAtomValue(keySoundsConfigAtom)
-  const phoneticConfig = useAtomValue(phoneticConfigAtom)
-  const pronunciationConfig = useAtomValue(pronunciationConfigAtom)
-  const randomConfig = useAtomValue(randomConfigAtom)
+  const chapterLogUploader = useMixPanelChapterLogUploader(typingState)
+  const saveChapterRecord = useSaveChapterRecord()
 
   const isLoopSingleWord = useAtomValue(isLoopSingleWordAtom)
+  const randomConfig = useAtomValue(randomConfigAtom)
   const [wordComponentKey, setWordComponentKey] = useState(0)
 
   const reloadCurrentWordComponent = useCallback(() => {
@@ -62,6 +53,15 @@ const App: React.FC = () => {
       }, 500)
     }
   }, [])
+
+  // 在组件挂载和currentDictId改变时，检查当前字典是否存在，如果不存在，则将其重置为默认值
+  useEffect(() => {
+    const id = currentDictId
+    if (!(id in idDictionaryMap)) {
+      setCurrentDictId('cet4')
+    }
+  }, [currentDictId, setCurrentDictId])
+
   useHotkeys(
     'enter',
     () => {
@@ -79,7 +79,7 @@ const App: React.FC = () => {
     return () => {
       window.removeEventListener('blur', onBlur)
     }
-  }, [])
+  }, [dispatch])
 
   useEffect(() => {
     if (!typingState.isTyping) {
@@ -95,15 +95,16 @@ const App: React.FC = () => {
         window.removeEventListener('keydown', onKeyDown)
       }
     }
-  }, [typingState.isTyping])
+  }, [typingState.isTyping, dispatch])
 
   useEffect(() => {
     if (words !== undefined) {
       dispatch({
         type: TypingStateActionType.SETUP_CHAPTER,
-        payload: words,
+        payload: { words, shouldShuffle: randomConfig.isOpen },
       })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [words])
 
   useEffect(() => {
@@ -116,9 +117,9 @@ const App: React.FC = () => {
 
   const skipWord = useCallback(() => {
     dispatch({ type: TypingStateActionType.SKIP_WORD })
-  }, [])
+  }, [dispatch])
 
-  const onFinish = (wordStat: WordStat) => {
+  const onFinish = () => {
     if (typingState.chapterData.index < typingState.chapterData.words.length - 1 || isLoopSingleWord) {
       // 用户完成当前单词
       if (isLoopSingleWord) {
@@ -127,46 +128,21 @@ const App: React.FC = () => {
       } else {
         dispatch({ type: TypingStateActionType.NEXT_WORD })
       }
-      const wordStatUpload: WordStatUpload = {
-        ...wordStat,
-        order: typingState.chapterData.index + 1,
-        chapter: (currentChapter + 1).toString(),
-        wordlist: currentDictInfo.name,
-        modeDictation: !typingState.isWordVisible,
-        modeDark: isDarkMode,
-        modeShuffle: randomConfig.isOpen,
-        enabledKeyboardSound: keySoundsConfig.isOpen,
-        enabledPhotonicsSymbol: phoneticConfig.isOpen,
-        enabledSingleWordLoop: isLoopSingleWord,
-        pronunciationAuto: pronunciationConfig.isOpen,
-        pronunciationOption: pronunciationConfig.isOpen === false ? 'none' : pronunciationConfig.type,
-      }
-      mixpanel.track('Word', wordStatUpload)
     } else {
       // 用户完成当前章节
       dispatch({ type: TypingStateActionType.FINISH_CHAPTER })
-
-      const chapterStatUpload: ChapterStatUpload = {
-        timeEnd: dayjs.utc().format('YYYY-MM-DD HH:mm:ss'),
-        duration: typingState.timerData.time,
-        countInput: typingState.chapterData.correctCount + typingState.chapterData.wrongCount,
-        countTypo: typingState.chapterData.wrongCount,
-        countCorrect: typingState.chapterData.correctCount,
-        chapter: (currentChapter + 1).toString(),
-        wordlist: currentDictInfo.name,
-        modeDictation: !typingState.isWordVisible,
-        modeDark: isDarkMode,
-        modeShuffle: randomConfig.isOpen,
-        enabledKeyboardSound: keySoundsConfig.isOpen,
-        enabledPhotonicsSymbol: phoneticConfig.isOpen,
-        enabledSingleWordLoop: isLoopSingleWord,
-        pronunciationAuto: pronunciationConfig.isOpen,
-        pronunciationOption: pronunciationConfig.isOpen === false ? 'none' : pronunciationConfig.type,
-      }
-
-      mixpanel.track('Chapter', chapterStatUpload)
     }
   }
+
+  useEffect(() => {
+    // 当用户完成章节后且完成 word Record 数据保存，记录 chapter Record 数据,
+    if (typingState.isFinished && !typingState.isSavingRecord) {
+      chapterLogUploader()
+      saveChapterRecord(typingState)
+    }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typingState.isFinished, typingState.isSavingRecord])
 
   useEffect(() => {
     // 启动计时器
@@ -177,7 +153,7 @@ const App: React.FC = () => {
       }, 1000)
     }
     return () => clearInterval(intervalId)
-  }, [typingState.isTyping])
+  }, [typingState.isTyping, dispatch])
 
   return (
     <TypingContext.Provider value={{ state: typingState, dispatch }}>
