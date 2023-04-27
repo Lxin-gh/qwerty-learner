@@ -1,5 +1,5 @@
 import { currentChapterAtom, currentDictIdAtom } from '@/store'
-import { DictionaryResource } from '@/typings'
+import { Dictionary } from '@/typings'
 import { CheckCircleIcon } from '@heroicons/react/20/solid'
 import { useAtom, useSetAtom } from 'jotai'
 import React, { useEffect, useRef } from 'react'
@@ -22,10 +22,12 @@ const DictionaryCard: React.FC<DictionaryCardProps> = ({ dictionary }) => {
     <button
       ref={buttonRef}
       className="relative w-48 overflow-hidden rounded-md border border-gray-300 bg-gray-50 p-4 text-left shadow-lg focus:outline-none dark:border-gray-500 dark:bg-gray-700 dark:bg-opacity-10 "
+      type="button"
       onClick={() => {
         setCurrentDictId(dictionary.id)
         setCurrentChapter(0)
       }}
+      title="选择词典"
     >
       <p className="mb-1 text-xl text-gray-800 dark:text-white dark:text-opacity-80">{dictionary.name}</p>
       <p className="mb-1 text-xs text-gray-900 dark:text-white dark:text-opacity-90">{dictionary.description}</p>
@@ -40,7 +42,7 @@ const DictionaryCard: React.FC<DictionaryCardProps> = ({ dictionary }) => {
 DictionaryCard.displayName = 'DictionaryCard'
 
 export type DictionaryCardProps = {
-  dictionary: DictionaryResource
+  dictionary: Dictionary
 }
 
 export default DictionaryCard

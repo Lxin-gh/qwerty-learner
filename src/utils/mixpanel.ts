@@ -2,7 +2,6 @@ import { TypingState } from '@/pages/Typing/store'
 import {
   currentChapterAtom,
   currentDictInfoAtom,
-  isLoopSingleWordAtom,
   isOpenDarkModeAtom,
   keySoundsConfigAtom,
   phoneticConfigAtom,
@@ -11,7 +10,6 @@ import {
 } from '@/store'
 import { InfoPanelType } from '@/typings'
 import { PronunciationType } from '@/typings'
-import dayjs from 'dayjs'
 import { useAtomValue } from 'jotai'
 import mixpanel from 'mixpanel-browser'
 import { useCallback } from 'react'
@@ -65,7 +63,6 @@ export type WordLogUpload = ModeInfo & {
   order: number
   chapter: string
   wordlist: string
-  isLoopSingleWord: boolean
 }
 
 export type ChapterLogUpload = ModeInfo & {
@@ -86,7 +83,6 @@ export function useMixPanelWordLogUploader(typingState: TypingState) {
   const phoneticConfig = useAtomValue(phoneticConfigAtom)
   const pronunciationConfig = useAtomValue(pronunciationConfigAtom)
   const randomConfig = useAtomValue(randomConfigAtom)
-  const isLoopSingleWord = useAtomValue(isLoopSingleWordAtom)
 
   const wordLogUploader = useCallback(
     (wordLog: { headword: string; timeStart: string; timeEnd: string; countInput: number; countCorrect: number; countTypo: number }) => {
@@ -100,8 +96,7 @@ export function useMixPanelWordLogUploader(typingState: TypingState) {
         modeShuffle: randomConfig.isOpen,
         enabledKeyboardSound: keySoundsConfig.isOpen,
         enabledPhotonicsSymbol: phoneticConfig.isOpen,
-        enabledSingleWordLoop: isLoopSingleWord,
-        isLoopSingleWord,
+        enabledSingleWordLoop: typingState.isLoopSingleWord,
         pronunciationAuto: pronunciationConfig.isOpen,
         pronunciationOption: pronunciationConfig.isOpen === false ? 'none' : pronunciationConfig.type,
       }
@@ -112,7 +107,6 @@ export function useMixPanelWordLogUploader(typingState: TypingState) {
       currentChapter,
       dictName,
       isDarkMode,
-      isLoopSingleWord,
       keySoundsConfig.isOpen,
       phoneticConfig.isOpen,
       pronunciationConfig.isOpen,
@@ -132,11 +126,10 @@ export function useMixPanelChapterLogUploader(typingState: TypingState) {
   const phoneticConfig = useAtomValue(phoneticConfigAtom)
   const pronunciationConfig = useAtomValue(pronunciationConfigAtom)
   const randomConfig = useAtomValue(randomConfigAtom)
-  const isLoopSingleWord = useAtomValue(isLoopSingleWordAtom)
 
   const chapterLogUploader = useCallback(() => {
     const props: ChapterLogUpload = {
-      timeEnd: dayjs.utc().format('YYYY-MM-DD HH:mm:ss'),
+      timeEnd: getUtcStringForMixpanel(),
       duration: typingState.timerData.time,
       countInput: typingState.chapterData.correctCount + typingState.chapterData.wrongCount,
       countTypo: typingState.chapterData.wrongCount,
@@ -148,7 +141,7 @@ export function useMixPanelChapterLogUploader(typingState: TypingState) {
       modeShuffle: randomConfig.isOpen,
       enabledKeyboardSound: keySoundsConfig.isOpen,
       enabledPhotonicsSymbol: phoneticConfig.isOpen,
-      enabledSingleWordLoop: isLoopSingleWord,
+      enabledSingleWordLoop: typingState.isLoopSingleWord,
       pronunciationAuto: pronunciationConfig.isOpen,
       pronunciationOption: pronunciationConfig.isOpen === false ? 'none' : pronunciationConfig.type,
     }
@@ -158,7 +151,6 @@ export function useMixPanelChapterLogUploader(typingState: TypingState) {
     currentChapter,
     dictName,
     isDarkMode,
-    isLoopSingleWord,
     keySoundsConfig.isOpen,
     phoneticConfig.isOpen,
     pronunciationConfig.isOpen,
@@ -166,4 +158,33 @@ export function useMixPanelChapterLogUploader(typingState: TypingState) {
     randomConfig.isOpen,
   ])
   return chapterLogUploader
+}
+
+export function recordDataAction({
+  type,
+  size,
+  wordCount,
+  chapterCount,
+}: {
+  type: 'export' | 'import'
+  size: number
+  wordCount: number
+  chapterCount: number
+}) {
+  const props = {
+    type,
+    size,
+    wordCount,
+    chapterCount,
+  }
+
+  mixpanel.track('dataAction', props)
+}
+
+export function getUtcStringForMixpanel() {
+  const now = new Date()
+  const isoString = now.toISOString()
+  const utcString = isoString.substring(0, 19).replace('T', ' ')
+
+  return utcString
 }

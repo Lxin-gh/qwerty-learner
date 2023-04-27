@@ -13,10 +13,8 @@ import { currentChapterAtom, currentDictInfoAtom } from '@/store'
 import { recordShareAction } from '@/utils'
 import { Dialog, Transition } from '@headlessui/react'
 import { XMarkIcon } from '@heroicons/react/24/solid'
-import { saveAs } from 'file-saver'
-import { toPng } from 'html-to-image'
 import { useAtomValue } from 'jotai'
-import { Fragment, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 
 const PIC_RATIO = 3
 const PIC_LIST = [shareImage1, shareImage2, shareImage3, shareImage4, shareImage5, shareImage6, shareImage7, shareImage8, shareImage9]
@@ -64,25 +62,33 @@ export default function SharePicDialog({ showState, setShowState, randomChoose }
   const promote = useMemo(() => PROMOTE_LIST[Math.floor(randomChoose.promoteRandom * PROMOTE_LIST.length)], [randomChoose.promoteRandom])
 
   useEffect(() => {
-    if (imageRef.current) {
-      const width = imageRef.current.offsetWidth,
-        height = imageRef.current.offsetHeight
-      toPng(imageRef.current, { canvasWidth: width * PIC_RATIO, canvasHeight: height * PIC_RATIO }).then((url) => {
-        setImageURL(url)
-      })
+    async function loadToPng() {
+      const { toPng } = await import('html-to-image')
+
+      if (imageRef.current) {
+        const width = imageRef.current.offsetWidth
+        const height = imageRef.current.offsetHeight
+        toPng(imageRef.current, { canvasWidth: width * PIC_RATIO, canvasHeight: height * PIC_RATIO }).then((url) => {
+          setImageURL(url)
+        })
+      }
     }
+
+    loadToPng()
   }, [])
 
-  const handleDownload = () => {
+  const handleDownload = useCallback(async () => {
+    const { saveAs } = await import('file-saver')
+
     if (imageURL) {
       saveAs(imageURL, 'Qwerty-learner.png')
       recordShareAction('download')
     }
-  }
+  }, [imageURL])
 
-  const handleClose = () => {
+  const handleClose = useCallback(() => {
     setShowState(false)
-  }
+  }, [setShowState])
 
   return (
     <>
@@ -111,9 +117,9 @@ export default function SharePicDialog({ showState, setShowState, randomChoose }
                 leaveFrom="opacity-100 translate-y-0 sm:scale-100"
                 leaveTo="opacity-0 translate-y-4 sm:translate-y-0 sm:scale-95"
               >
-                <Dialog.Panel className="relative transform overflow-hidden rounded-large bg-white text-left shadow-xl transition-all  dark:bg-gray-700">
+                <Dialog.Panel className="relative transform overflow-hidden rounded-xl bg-white text-left shadow-xl transition-all  dark:bg-gray-700">
                   <div className="flex flex-col items-center justify-center pb-10 pl-20 pr-14 pt-20">
-                    <button className="absolute right-7 top-5" onClick={handleClose}>
+                    <button className="absolute right-7 top-5" type="button" onClick={handleClose} title="关闭对话框">
                       <XMarkIcon className="h-6 w-6 text-gray-400" />
                     </button>
                     <div className="h-152 w-116">
@@ -137,7 +143,13 @@ export default function SharePicDialog({ showState, setShowState, randomChoose }
                         </div>
                       )}
                     </div>
-                    <button onClick={handleDownload} ref={dialogFocusRef} className="btn-primary mr-9 mt-10 h-10">
+                    <button
+                      ref={dialogFocusRef}
+                      className="btn-primary mr-9 mt-10 h-10"
+                      type="button"
+                      onClick={handleDownload}
+                      title="保存"
+                    >
                       保存
                     </button>
                   </div>
@@ -157,7 +169,7 @@ export default function SharePicDialog({ showState, setShowState, randomChoose }
             <div className=" w-full ">
               <KeyboardPanel description={promote.word} />
               <div className="text-center text-xs text-gray-500">{promote.sentence}</div>
-              <div className="opacity-45 mx-4 mt-6 flex rounded-large bg-white px-4 py-3 shadow-xl">
+              <div className="opacity-45 mx-4 mt-6 flex rounded-xl bg-white px-4 py-3 shadow-xl">
                 <DataBox data={state.timerData.time + ''} description="用时" />
                 <DataBox data={state.timerData.accuracy + '%'} description="正确率" />
                 <DataBox data={state.timerData.wpm + ''} description="WPM" />

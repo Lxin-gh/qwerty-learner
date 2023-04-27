@@ -3,10 +3,12 @@ import ShareButton from '../ShareButton'
 import ConclusionBar from './ConclusionBar'
 import RemarkRing from './RemarkRing'
 import WordChip from './WordChip'
+import styles from './index.module.css'
 import redBookLogo from '@/assets/redBook-color-logo.svg'
 import Tooltip from '@/components/Tooltip'
 import { currentChapterAtom, currentDictInfoAtom, infoPanelStateAtom, randomConfigAtom } from '@/store'
 import { InfoPanelType } from '@/typings'
+import { WordWithIndex } from '@/typings'
 import { recordOpenInfoPanelAction } from '@/utils'
 import { Transition } from '@headlessui/react'
 import { IconX } from '@tabler/icons-react'
@@ -22,6 +24,12 @@ const ResultScreen = () => {
   const [currentChapter, setCurrentChapter] = useAtom(currentChapterAtom)
   const setInfoPanelState = useSetAtom(infoPanelStateAtom)
   const randomConfig = useAtomValue(randomConfigAtom)
+
+  const wrongWords = useMemo(() => {
+    const wordList = state.chapterData.wrongWordIndexes.map((index) => state.chapterData.words.find((word) => word.index === index))
+
+    return wordList.filter((word) => word !== undefined) as WordWithIndex[]
+  }, [state.chapterData.wrongWordIndexes, state.chapterData.words])
 
   const isLastChapter = useMemo(() => {
     return currentChapter >= currentDictInfo.chapterCount - 1
@@ -135,8 +143,8 @@ const ResultScreen = () => {
               </div>
               <div className="z-10 ml-6 flex-1 overflow-visible rounded-xl bg-indigo-50 dark:bg-gray-700">
                 <div className="customized-scrollbar z-20 ml-8 mr-1 flex h-80 flex-row flex-wrap content-start gap-4 overflow-y-auto overflow-x-hidden pr-7 pt-9">
-                  {state.chapterData.wrongWordIndexes.map((index) => (
-                    <WordChip key={`${index}-${state.chapterData.words[index].name}`} word={state.chapterData.words[index]} />
+                  {wrongWords.map((word, index) => (
+                    <WordChip key={`${index}-${word.name}`} word={word} />
                   ))}
                 </div>
                 <div className="align-center flex w-full flex-row justify-start rounded-b-xl bg-indigo-200 px-4 dark:bg-indigo-400">
@@ -169,7 +177,7 @@ const ResultScreen = () => {
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
                     viewBox="0 0 640 512"
-                    className="h-5.5 w-5.5 fill-current text-gray-500 focus:outline-none dark:text-gray-400"
+                    className={`h-5.5 w-5.5 fill-current text-gray-500 focus:outline-none dark:text-gray-400  ${styles.imgShake}`}
                   >
                     <path d="M96 64c0-17.7 14.3-32 32-32H448h64c70.7 0 128 57.3 128 128s-57.3 128-128 128H480c0 53-43 96-96 96H192c-53 0-96-43-96-96V64zM480 224h32c35.3 0 64-28.7 64-64s-28.7-64-64-64H480V224zM32 416H544c17.7 0 32 14.3 32 32s-14.3 32-32 32H32c-17.7 0-32-14.3-32-32s14.3-32 32-32z" />
                   </svg>
@@ -182,6 +190,7 @@ const ResultScreen = () => {
                   }}
                   className="cursor-pointer text-gray-500 dark:text-gray-400"
                   type="button"
+                  title="加入我们的社区"
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
@@ -207,7 +216,9 @@ const ResultScreen = () => {
               <Tooltip content="快捷键：shift + enter">
                 <button
                   className="btn-primary h-12 border-2 border-solid border-gray-300 bg-white text-base text-gray-700 dark:border-gray-700 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-700"
+                  type="button"
                   onClick={dictationButtonHandler}
+                  title="默写本章节"
                 >
                   默写本章节
                 </button>
@@ -215,7 +226,9 @@ const ResultScreen = () => {
               <Tooltip content="快捷键：space">
                 <button
                   className="btn-primary h-12 border-2 border-solid border-gray-300 bg-white text-base text-gray-700 dark:border-gray-700 dark:bg-gray-600 dark:text-white dark:hover:bg-gray-700"
+                  type="button"
                   onClick={repeatButtonHandler}
+                  title="重复本章节"
                 >
                   重复本章节
                 </button>
@@ -224,7 +237,9 @@ const ResultScreen = () => {
                 <Tooltip content="快捷键：enter">
                   <button
                     className={`btn-primary { isLastChapter ? 'cursor-not-allowed opacity-50' : ''} h-12 text-base font-bold `}
+                    type="button"
                     onClick={nextButtonHandler}
+                    title="下一章节"
                   >
                     下一章节
                   </button>

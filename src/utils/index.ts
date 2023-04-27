@@ -1,3 +1,4 @@
+import { CHAPTER_LENGTH } from '@/constants'
 import { Howl } from 'howler'
 
 export * from './mixpanel'
@@ -60,4 +61,41 @@ export function classNames(...classNames: Array<string | void | null>) {
   }
 
   return finallyClassNames.join(' ')
+}
+
+export function getCurrentDate() {
+  const date = new Date()
+  const year = date.getFullYear()
+  const month = ('0' + (date.getMonth() + 1)).slice(-2)
+  const day = ('0' + date.getDate()).slice(-2)
+
+  return `${year}${month}${day}`
+}
+
+export function calcChapterCount(length: number) {
+  return Math.ceil(length / CHAPTER_LENGTH)
+}
+
+export function findCommonValues<T>(xs: T[], ys: T[]): T[] {
+  const set = new Set(ys)
+  return xs.filter((x) => set.has(x))
+}
+
+export function toFixedNumber(number: number, fractionDigits: number) {
+  return Number((number ?? 0).toFixed(fractionDigits))
+}
+
+export function getUTCUnixTimestamp() {
+  const now = new Date()
+  return Math.floor(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      now.getUTCHours(),
+      now.getUTCMinutes(),
+      now.getUTCSeconds(),
+      now.getUTCMilliseconds(),
+    ) / 1000,
+  )
 }

@@ -1,4 +1,4 @@
-import { CHAPTER_LENGTH, DISMISS_START_CARD_DATE_KEY } from '@/constants'
+import { DISMISS_START_CARD_DATE_KEY } from '@/constants'
 import { idDictionaryMap } from '@/resources/dictionary'
 import { keySoundResources, wrongSoundResources, correctSoundResources } from '@/resources/soundResource'
 import { PronunciationType, PhoneticType, Dictionary, InfoPanelState } from '@/typings'
@@ -13,9 +13,7 @@ export const currentDictInfoAtom = atom<Dictionary>((get) => {
   if (!dict) {
     dict = idDictionaryMap.cet4
   }
-
-  const dictionary = { ...dict, chapterCount: Math.ceil(dict.length / CHAPTER_LENGTH) }
-  return dictionary || null
+  return dict
 })
 
 export const currentChapterAtom = atomWithStorage('currentChapter', 0)
@@ -42,14 +40,13 @@ export const pronunciationConfigAtom = atomWithStorage('pronunciation', {
   type: 'us' as PronunciationType,
   name: '美音',
   isLoop: false,
+  rate: 1,
 })
 export const pronunciationIsOpenAtom = atom((get) => get(pronunciationConfigAtom).isOpen)
 
 export const randomConfigAtom = atomWithStorage('randomConfig', {
   isOpen: false,
 })
-
-export const isLoopSingleWordAtom = atom(false)
 
 export const isIgnoreCaseAtom = atomWithStorage('isIgnoreCase', true)
 
